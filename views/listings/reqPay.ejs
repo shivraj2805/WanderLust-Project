@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reserve Listing</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .container {
+      max-width: 600px;
+    }
+    .card {
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .card-header {
+      background-color: #007bff;
+      color: white;
+      font-size: 1.5rem;
+      text-align: center;
+      padding: 15px;
+      border-radius: 10px 10px 0 0;
+    }
+    .btn-primary {
+      background-color: #28a745;
+      border-color: #28a745;
+    }
+    .btn-primary:hover {
+      background-color: #218838;
+      border-color: #1e7e34;
+    }
+    .form-control, .form-select {
+      border-radius: 5px;
+    }
+    .flash-message {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1050;
+      display: none;
+      background-color: #28a745;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .listing-header {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5">
+    <!-- Listing Details -->
+    <div class="listing-header">
+      <h2 class="listing-title"><%= listing.title %></h2>
+      <p class="listing-price">₹<span id="pricePerNight"><%= listing.price %></span>/ night</p>
+    </div>
+
+    <!-- Reservation Form -->
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <h3>Reserve Your Stay</h3>
+      </div>
+      <div class="card-body">
+        <form id="reservationForm" action="/reserve" method="POST" novalidate>
+          <!-- Number of People -->
+          <div class="mb-3">
+            <label for="numPeople" class="form-label">Number of People</label>
+            <input type="number" id="numPeople" name="numPeople" class="form-control form-control-lg" min="1" required>
+            <div class="invalid-feedback">Please enter the number of people.</div>
+          </div>
+
+          <!-- Check-In and Check-Out Date -->
+          <div class="mb-3 d-flex justify-content-between">
+            <div class="w-48">
+              <label for="checkInDate" class="form-label">Check-In Date</label>
+              <input type="date" id="checkInDate" name="checkInDate" class="form-control form-control-lg" required>
+              <div class="invalid-feedback">Please select a valid check-in date.</div>
+            </div>
+            <div class="w-48">
+              <label for="checkOutDate" class="form-label">Check-Out Date</label>
+              <input type="date" id="checkOutDate" name="checkOutDate" class="form-control form-control-lg" required>
+              <div class="invalid-feedback">Please select a valid check-out date.</div>
+            </div>
+          </div>
+
+          <!-- Payment Options -->
+          <div class="mb-3">
+            <label for="paymentMethod" class="form-label">Payment Method</label>
+            <select id="paymentMethod" name="paymentMethod" class="form-select form-select-lg" required>
+              <option value="" disabled selected>Select a payment method</option>
+              <option value="credit_card">Credit Card</option>
+              <option value="debit_card">Debit Card</option>
+              <option value="paypal">PayPal</option>
+            </select>
+            <div class="invalid-feedback">Please select a payment method.</div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="text-center">
+            <button type="button" onclick="handleReserve('<%= listing._id %>', '<%= listing.title %>')" class="btn btn-primary btn-lg px-5 py-3">Reserve Now</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flash Message -->
+  <div id="flashMessage" class="flash-message"></div>
+
+  <script>
+    const handleReserve = async (listingId, listingTitle) => {
+      const form = document.getElementById('reservationForm');
+      if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+      }
+
+      const userId = '<%= user.id %>';  // Ensure this is correctly populated
+      if (!userId) {
+        alert('You must be logged in to reserve this listing');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/listings/${listingId}/reserve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            reserve: true,
+            userId,
+          }),
+        });
+
+        // Check for valid JSON response
+        const contentType = response.headers.get('Content-Type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned an unexpected response format');
+        }
+
+        const data = await response.json();
+        if (response.ok) {
+          alert(`Reservation confirmed for listing: ${listingTitle}`);
+  
+          const pricePerNight = parseFloat(document.getElementById('pricePerNight').innerText);
+          const numPeople = parseInt(document.getElementById('numPeople').value, 10);
+          const checkInDate = new Date(document.getElementById('checkInDate').value);
+          const checkOutDate = new Date(document.getElementById('checkOutDate').value);
+          const timeDifference = checkOutDate - checkInDate;
+          const daysStayed = Math.ceil(timeDifference / (1000 * 3600 * 24));
+          const totalPayment = pricePerNight * daysStayed * numPeople;
+  
+          const flashMessage = document.getElementById('flashMessage');
+          flashMessage.innerText = `Reservation confirmed! Duration: ${daysStayed} days. Total Payment: ₹${totalPayment.toFixed(2)}.`;
+          flashMessage.style.display = 'block';
+  
+          setTimeout(() => {
+            flashMessage.style.display = 'none';
+            window.location.href = `/listings/${listingId}`;
+          }, 3000);
+        } else {
+          alert(`Failed to reserve: ${data.message || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('Error during reservation:', err);
+        alert(`An unexpected error occurred. Please try again later. Details: ${err.message}`);
+      }
+    };
+  </script>
+
+</body>
+</html>

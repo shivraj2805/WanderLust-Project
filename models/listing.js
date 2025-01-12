@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const review = require("./review");
 const Schema = mongoose.Schema;
 const Review = require("./review.js");
+const { boolean } = require("joi");
 
 const listingSchema = new Schema({
     title: {
@@ -34,6 +35,24 @@ const listingSchema = new Schema({
         type : String ,
         enum: ["Trending","Rooms","Iconic Cities","Mountains","Castles","Amazing Pools","Camping","Farms","Arctic","Domes","Boats"],
     },
+    reserve: { type: Boolean, default: false },
+    reservedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Add reservedBy field
+    reservations: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    }],
+    geometry:{
+        type: {
+            type: String,
+            enum: ['Point'],
+            required: true
+          },
+          coordinates: {
+            type: [Number],
+            required: true
+          }
+    }
+
 });
 
 listingSchema.post("findOneAndDelete", async (listing) => {

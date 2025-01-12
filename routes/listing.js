@@ -28,6 +28,11 @@ router.route("/:id")
 //Edit Route
 router.get("/:id/edit",isLoggedIn , isOwner ,wrapAsync( listingController.renderEditForm));
 
+router.post('/:id/reserve',isLoggedIn,wrapAsync(listingController.reservedReq));
+
+
+//Req Paymnet route
+router.get("/:id/reqpayment" , isLoggedIn ,listingController.renderPaymentReqForm);
 
 
 // Route to fetch listings by category (returns JSON)

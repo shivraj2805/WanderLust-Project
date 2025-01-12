@@ -1,7 +1,8 @@
 <% layout("/layouts/boilerplate") %>
-<!-- <script>
+<script>
     const mapToken="<%= process.env.MAP_TOKEN %>";
-</script> -->
+    const listing = <%- JSON.stringify(listing) %>;
+</script>
 
 <div class="row mt-3">
     <div class="col-8 offset-3" >
@@ -29,6 +30,23 @@
     </div>
 
     <% } %>
+
+    <% if (currUser && currUser._id && listing.owner && listing.owner._id && listing.reservations) { %>
+        <% if (currUser._id.toString() !== listing.owner._id.toString() && !listing.reservations.includes(currUser._id)) { %>
+            <div class="btns">
+                <a href="/listings/<%= listing._id %>/reqpayment" class="btn btn-dark col-1 offset-3 edit-btn">Reserve</a>
+            </div>
+        <% } else if (listing.reservations.includes(currUser._id)) { %>
+            <p class="text-muted">You have already reserved this listing.</p>
+        <% } %>
+    <% } else if (!currUser) { %>
+        <p class="text-muted offset-3" ">Please log in to reserve this listing.</p>
+    <% } %>
+    
+    <% if (!currUser && listing.reservations && listing.reservations.length > 0) { %>
+        <p class="text-muted offset-3">This listing is already reserved by others.</p>
+    <% } %>
+    
 
 
     <div class="col-8 offset-3 mb-3 mt-3">
@@ -95,15 +113,15 @@
     </div>
     
     <!-- Map Display -->
-    <!-- <div class="col-6 offset-3 mb-3 mt-3">
+    <div class="col-6 offset-3 mb-3 mt-3">
       <h3>Where you'll be</h3>
       <div id="map"></div>
-    </div> -->
+    </div>
    
 </div>
 
 
 <!-- <script src="/js/script.js"></script> -->
+ <script src="/js/map.js"></script>
 
-
-
+ 

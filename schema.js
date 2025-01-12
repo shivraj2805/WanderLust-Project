@@ -27,7 +27,15 @@ module.exports.listingSchema = Joi.object({
             .uri()
             .empty('') // Empty string ko undefined karein
             .default('https://example.com/default-image.jpg'),
-    }).required()
+
+            reserve: Joi.boolean().default(false).messages({
+                'boolean.base': 'Reserved must be a boolean value.',
+            }),
+            // Make sure to validate the reservations as an array of user IDs
+            reservations: Joi.array().items(Joi.string().hex().length(24)).default([]), // An array of 24-character hex strings (ObjectIds)
+            reservedBy: Joi.string().optional().allow(null), // Allow `reservedBy` to be a string (user ID), and null when not reserved
+    }).required(),
+    
 });
 
 module.exports.reviewSchema = Joi.object({

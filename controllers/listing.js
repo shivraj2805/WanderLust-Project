@@ -1,4 +1,7 @@
 const Listing=require("../models/listing");
+const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');     //Mapbox
+const mapToken=process.env.MAP_TOKEN;
+const geocodingClient = mbxGeocoding({ accessToken: mapToken});
 
 module.exports.index =async (req,res)=>{
     const allListings =await Listing.find({});
@@ -20,13 +23,22 @@ module.exports.showListing = async (req,res)=>{
 }
 
 module.exports.createListing=async (req, res,next)=>{
+  let response = await geocodingClient.forwardGeocode({
+    query: req.body.listing.location,
+    limit: 1,
+  })
+    .send();
+
     let url = req.file.path;
     let filename = req.file.filename;
    
     const newListing = new Listing(req.body.listing);
     newListing.owner=req.user._id;
     newListing.image ={url , filename};
-    await newListing.save();
+
+    newListing.geometry=response.body.features[0].geometry;
+    let savedListing = await newListing.save();
+    console.log(savedListing);
     req.flash("success","New Listing Created !");
     res.redirect("/listings"); 
 }
@@ -44,6 +56,78 @@ module.exports.renderEditForm=async (req,res) =>{
 
     res.render("listings/edit.ejs",{listing , originalImageUrl});
 }
+
+module.exports.renderPaymentReqForm = async (req, res) => {
+    try {
+        const mongoose = require('mongoose');
+        let { id } = req.params;
+
+        // Validate listing ID
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            req.flash("error", "Invalid listing ID.");
+            return res.redirect("/listings");
+        }
+
+        // Fetch the listing
+        const listing = await Listing.findById(id);
+        if (!listing) {
+            req.flash("error", "Listing not found!");
+            return res.redirect("/listings");
+        }
+
+        // Ensure user is logged in
+        if (!req.user) {
+            req.flash("error", "You must be logged in to access this page.");
+            return res.redirect("/login");
+        }
+
+        // Render the payment form
+        res.render("listings/reqPay.ejs", { listing, user: req.user });
+    } catch (err) {
+        console.error("Error in renderPaymentReqForm:", err);
+        req.flash("error", "An error occurred while fetching the listing.");
+        res.redirect("/listings");
+    }
+};
+
+module.exports.reservedReq = async (req, res) => {
+    try {
+      const { id } = req.params; // Listing ID from URL
+      const userId = req.user.id; // User ID (ensure the user is authenticated)
+  
+      console.log(`Attempting to reserve listing with ID: ${id} by user: ${userId}`);
+  
+      // Fetch the listing from the database
+      const listing = await Listing.findById(id);
+      if (!listing) {
+        return res.status(404).json({ message: 'Listing not found' });
+      }
+  
+      // Check if the listing is already reserved
+      if (listing.reserved) {
+        return res.status(400).json({ message: 'This property is already reserved' });
+      }
+  
+      // Reserve the property: update reserved and reservedBy fields
+      listing.reserved = true;
+      listing.reservedBy = userId;
+      await listing.save(); // Save the updated listing
+  
+      res.status(200).json({ message: 'Reservation successful', listing });
+    } catch (error) {
+      console.error('Error reserving listing:', error);
+      res.status(500).json({
+        message: 'Failed to reserve. Try again later.',
+        error: error.message
+      });
+    }
+  };
+  
+
+
+
+
+
 
 module.exports.updateListing=async (req,res)=>{
     let {id} =req.params;
@@ -111,4 +195,4 @@ module.exports.searchOption = async (req, res) => {
       console.error(err);
       res.status(500).send('Internal Server Error');
     }
-  };
+};
